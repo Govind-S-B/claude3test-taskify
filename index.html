@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>taskify.pro</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #1c1c1c;
+      color: #fff;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+    }
+    .task-card {
+      background-color: #2c2c2c;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      cursor: move;
+      transition: background-color 0.3s;
+    }
+    .task-card:hover {
+      background-color: #3c3c3c;
+    }
+    .task-card .drag-handle {
+      display: inline-block;
+      margin-right: 5px;
+      cursor: move;
+      color: #888;
+    }
+    .task-card .task-content {
+      display: inline-block;
+    }
+    .subtask-list {
+      list-style-type: none;
+      padding-left: 20px;
+    }
+    .dragging {
+      opacity: 0.5;
+    }
+    .drag-placeholder {
+      border: 2px dashed #555;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      height: 40px;
+      background-color: #2c2c2c;
+    }
+    .record-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+    .copy-button {
+      padding: 10px 20px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>taskify.pro</h1>
+    <ul id="taskList" class="task-list"></ul>
+    <button id="copyButton" class="copy-button">Copy as Markdown</button>
+  </div>
+  <button id="recordButton" class="record-button">Record</button>
+
+  <script>
+    // Mock API functions
+    function fn_api1_call(audio) {
+      // Simulating the API call with a mock response
+      return "Sample text transcript from the audio recording.";
+    }
+
+    function fn_api2_call(text) {
+      // Simulating the API call with a mock response
+      return {
+        "task_list": [
+          {
+            "task": "Task 1",
+            "sub_tasks": [
+              {
+                "task": "Subtask 1.1"
+              },
+              {
+                "task": "Subtask 1.2"
+              }
+            ]
+          },
+          {
+            "task": "Task 2",
+            "sub_tasks": [
+              {
+                "task": "Subtask 2.1"
+              }
+            ]
+          },
+          {
+            "task": "Task 3"
+          }
+        ]
+      };
+    }
+
+    // Function to render the task list
+    function renderTaskList(taskList) {
+      const taskListElement = document.getElementById("taskList");
+      taskListElement.innerHTML = "";
+
+      taskList.forEach(task => {
+        const taskCard = createTaskCard(task);
+        taskListElement.appendChild(taskCard);
+      });
+    }
+
+     // Function to create a task card element
+     function createTaskCard(task) {
+      const taskCard = document.createElement("div");
+      taskCard.classList.add("task-card");
+      taskCard.setAttribute("draggable", "true");
+
+      const dragHandle = document.createElement("span");
+      dragHandle.classList.add("drag-handle");
+      dragHandle.textContent = "☰";
+      taskCard.appendChild(dragHandle);
+
+      const taskContent = document.createElement("span");
+      taskContent.classList.add("task-content");
+      taskContent.textContent = task.task;
+      taskCard.appendChild(taskContent);
+
+      if (task.sub_tasks) {
+        const subtaskList = document.createElement("div");
+        subtaskList.classList.add("subtask-list");
+        task.sub_tasks.forEach(subtask => {
+          const subtaskCard = createTaskCard(subtask);
+          subtaskList.appendChild(subtaskCard);
+        });
+        taskCard.appendChild(subtaskList);
+      }
+
+      return taskCard;
+    }
+
+    // Function to handle the record button click
+    function handleRecordButtonClick() {
+      // Simulating audio recording and API calls
+      const audioRecording = "dummy_audio_recording";
+      const textTranscript = fn_api1_call(audioRecording);
+      const taskList = fn_api2_call(textTranscript).task_list;
+      renderTaskList(taskList);
+    }
+
+    // Function to handle the copy button click
+    function handleCopyButtonClick() {
+      const taskListElement = document.getElementById("taskList");
+      const markdown = generateMarkdown(taskListElement);
+      copyToClipboard(markdown);
+      alert("Task list copied as markdown!");
+    }
+
+    // Function to generate markdown from the task list
+    function generateMarkdown(taskListElement) {
+      let markdown = "";
+      const taskCards = taskListElement.getElementsByClassName("task-card");
+      for (let i = 0; i < taskCards.length; i++) {
+        const taskCard = taskCards[i];
+        const taskContent = taskCard.querySelector(".task-content");
+        markdown += `- [ ] ${taskContent.textContent.trim()}\n`;
+        const subtaskList = taskCard.querySelector(".subtask-list");
+        if (subtaskList) {
+          const subtaskCards = subtaskList.getElementsByClassName("task-card");
+          for (let j = 0; j < subtaskCards.length; j++) {
+            const subtaskCard = subtaskCards[j];
+            const subtaskContent = subtaskCard.querySelector(".task-content");
+            markdown += `  - [ ] ${subtaskContent.textContent.trim()}\n`;
+          }
+        }
+      }
+      return markdown;
+    }
+
+    // Function to copy text to clipboard
+    function copyToClipboard(text) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+
+    // Drag and drop event handlers
+    let draggedCard = null;
+
+    function handleDragStart(event) {
+      draggedCard = event.target.closest(".task-card");
+      event.dataTransfer.setData("text/plain", draggedCard.id);
+      event.dataTransfer.effectAllowed = "move";
+      draggedCard.classList.add("dragging");
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      const targetCard = event.target.closest(".task-card");
+      const taskListElement = document.getElementById("taskList");
+      const placeholder = document.querySelector(".drag-placeholder");
+
+      if (targetCard && targetCard !== draggedCard) {
+        const rect = targetCard.getBoundingClientRect();
+        const offset = event.clientY - rect.top;
+        if (offset < rect.height / 2) {
+          targetCard.parentNode.insertBefore(placeholder, targetCard);
+        } else {
+          targetCard.parentNode.insertBefore(placeholder, targetCard.nextSibling);
+        }
+      } else if (!targetCard && event.target === taskListElement) {
+        taskListElement.appendChild(placeholder);
+      }
+    }
+
+    function handleDragLeave(event) {
+      const placeholder = document.querySelector(".drag-placeholder");
+      if (placeholder && !event.currentTarget.contains(event.relatedTarget)) {
+        placeholder.remove();
+      }
+    }
+
+    function handleDrop(event) {
+      event.preventDefault();
+      const targetCard = event.target.closest(".task-card");
+      const taskListElement = document.getElementById("taskList");
+      const placeholder = document.querySelector(".drag-placeholder");
+
+      if (placeholder) {
+        placeholder.parentNode.insertBefore(draggedCard, placeholder);
+        placeholder.remove();
+      } else if (targetCard && targetCard !== draggedCard) {
+        const subtaskList = targetCard.querySelector(".subtask-list");
+        if (subtaskList) {
+          subtaskList.appendChild(draggedCard);
+        } else {
+          const newSubtaskList = document.createElement("div");
+          newSubtaskList.classList.add("subtask-list");
+          newSubtaskList.appendChild(draggedCard);
+          targetCard.appendChild(newSubtaskList);
+        }
+      } else {
+        taskListElement.appendChild(draggedCard);
+      }
+
+      draggedCard.classList.remove("dragging");
+      draggedCard = null;
+    }
+
+    // Event listeners
+    document.getElementById("recordButton").addEventListener("click", handleRecordButtonClick);
+    document.getElementById("copyButton").addEventListener("click", handleCopyButtonClick);
+    document.getElementById("taskList").addEventListener("dragstart", handleDragStart);
+    document.getElementById("taskList").addEventListener("dragover", handleDragOver);
+    document.getElementById("taskList").addEventListener("dragleave", handleDragLeave);
+    document.getElementById("taskList").addEventListener("drop", handleDrop);
+  </script>
+</body>
+</html>
